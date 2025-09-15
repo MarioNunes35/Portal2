@@ -1,6 +1,5 @@
-# app.py - App Principal com Redirecionamento Automático
+# app.py - App Principal SEM Redirecionamento Automático
 import streamlit as st
-import time
 
 # --- Configuração da Página ---
 st.set_page_config(
@@ -59,32 +58,28 @@ LOGIN_CSS = """
     border-radius: 10px; padding: 20px; margin: 20px 0;
 }
 
-.redirect-message {
-    background: rgba(33, 150, 243, 0.2); border: 1px solid rgba(33, 150, 243, 0.4);
-    border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;
-}
-
-.loading-spinner {
-    display: inline-block; width: 20px; height: 20px;
-    border: 3px solid rgba(255,255,255,0.3); border-radius: 50%;
-    border-top-color: white; animation: spin 1s ease-in-out infinite;
-    margin-right: 10px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 .manual-link {
-    display: inline-block; background: rgba(255,255,255,0.2);
-    border: 1px solid rgba(255,255,255,0.3); border-radius: 10px;
-    padding: 15px 25px; color: white; text-decoration: none;
-    font-weight: 600; margin-top: 15px; transition: all 0.3s ease;
+    display: inline-block; background: rgba(255,255,255,0.9);
+    border: 2px solid rgba(255,255,255,0.3); border-radius: 15px;
+    padding: 18px 30px; color: #667eea; text-decoration: none;
+    font-weight: 700; font-size: 18px; margin-top: 20px; 
+    transition: all 0.3s ease; text-align: center; width: 100%;
 }
 
 .manual-link:hover {
-    background: rgba(255,255,255,0.3); transform: translateY(-2px);
-    color: white; text-decoration: none;
+    background: white; transform: translateY(-3px);
+    color: #667eea; text-decoration: none;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+}
+
+.info-box {
+    background: rgba(33, 150, 243, 0.2); border: 1px solid rgba(33, 150, 243, 0.4);
+    border-radius: 10px; padding: 20px; margin: 20px 0;
+}
+
+.warning-box {
+    background: rgba(255, 193, 7, 0.2); border: 1px solid rgba(255, 193, 7, 0.4);
+    border-radius: 10px; padding: 20px; margin: 20px 0;
 }
 </style>
 """
@@ -93,7 +88,6 @@ st.markdown(LOGIN_CSS, unsafe_allow_html=True)
 
 # --- Configurações ---
 PORTAL_URL = "https://subaplicativos.streamlit.app"
-REDIRECT_DELAY = 3  # segundos
 
 # --- Funções de Autenticação ---
 def is_authenticated():
@@ -164,6 +158,15 @@ def render_login_page():
             <div class="login-box">
                 <h1>🚀 Portal de Análises</h1>
                 <p>Faça login para acessar seus aplicativos de análise</p>
+                
+                <div class="info-box">
+                    <p style="margin: 0; font-size: 0.9rem;">
+                        <strong>ℹ️ Como funciona:</strong><br>
+                        1. Clique no botão abaixo para fazer login<br>
+                        2. Após o login, você receberá um link para o portal<br>
+                        3. Clique no link para acessar seus aplicativos
+                    </p>
+                </div>
             </div>
         </div>
     ''', unsafe_allow_html=True)
@@ -175,8 +178,8 @@ def render_login_page():
             # O Streamlit Cloud processará automaticamente o OAuth
             st.rerun()
 
-def render_success_and_redirect():
-    """Renderiza página de sucesso e redireciona automaticamente."""
+def render_success_page():
+    """Renderiza página de sucesso SEM redirecionamento automático."""
     user_email = get_user_email()
     
     st.markdown(f'''
@@ -187,34 +190,39 @@ def render_success_and_redirect():
                     <p><strong>Bem-vindo:</strong> {user_email or "Usuário"}</p>
                 </div>
                 
-                <div class="redirect-message">
-                    <div class="loading-spinner"></div>
-                    <strong>Redirecionando para o Portal de Aplicativos...</strong>
-                    <p style="margin-top: 10px; opacity: 0.8;">
-                        Você será redirecionado automaticamente em {REDIRECT_DELAY} segundos
+                <div class="info-box">
+                    <p style="margin: 0;">
+                        <strong>🎉 Pronto!</strong><br>
+                        Agora você pode acessar o Portal de Aplicativos clicando no botão abaixo.
+                    </p>
+                </div>
+                
+                <div class="warning-box">
+                    <p style="margin: 0; font-size: 0.9rem;">
+                        <strong>⚠️ Importante:</strong><br>
+                        Clique no botão abaixo para abrir o portal em uma <strong>nova aba</strong>. 
+                        Isso evita problemas de redirecionamento.
                     </p>
                 </div>
             </div>
         </div>
     ''', unsafe_allow_html=True)
     
-    # JavaScript para redirecionamento automático
-    st.markdown(f"""
-    <script>
-        setTimeout(function() {{
-            window.location.href = "{PORTAL_URL}";
-        }}, {REDIRECT_DELAY * 1000});
-    </script>
-    """, unsafe_allow_html=True)
-    
-    # Link manual caso o redirecionamento automático falhe
+    # Link manual que abre em nova aba
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown(f"""
-        <a href="{PORTAL_URL}" target="_self" class="manual-link">
-            🚀 Ir para Portal de Aplicativos
+        <a href="{PORTAL_URL}" target="_blank" class="manual-link">
+            🚀 Abrir Portal de Aplicativos
         </a>
         """, unsafe_allow_html=True)
+        
+        # Botão adicional para logout/voltar
+        if st.button("🔄 Fazer Logout", key="logout_btn", use_container_width=True):
+            # Limpa a sessão
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
 
 def render_access_denied():
     """Renderiza página de acesso negado."""
@@ -225,23 +233,87 @@ def render_access_denied():
             <div class="login-box">
                 <h2>🚫 Acesso Negado</h2>
                 <p>O email <strong>{user_email}</strong> não tem permissão para acessar este portal.</p>
-                <p style="opacity: 0.8;">Entre em contato com o administrador para solicitar acesso.</p>
+                
+                <div class="warning-box">
+                    <p style="margin: 0;">
+                        <strong>📧 Emails autorizados:</strong><br>
+                        Entre em contato com o administrador para solicitar acesso.
+                    </p>
+                </div>
             </div>
         </div>
     ''', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🔄 Tentar Novamente", key="retry_btn"):
+        if st.button("🔄 Tentar Novamente", key="retry_btn", use_container_width=True):
             # Limpa sessão e tenta novamente
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
+            st.rerun()
+
+def render_debug_page():
+    """Renderiza página de debug."""
+    st.markdown('''
+        <div class="login-container">
+            <div class="login-box">
+                <h2>🛠️ Debug - Estado da Autenticação</h2>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    # Informações de debug
+    debug_info = {
+        "is_authenticated": is_authenticated(),
+        "user_email": get_user_email(),
+        "has_st_context": hasattr(st, 'context'),
+        "has_st_user": hasattr(st, 'user'),
+        "session_state_keys": list(st.session_state.keys()),
+    }
+    
+    st.subheader("🔍 Estado Atual:")
+    st.json(debug_info)
+    
+    # Verificar secrets
+    st.subheader("🔐 Configuração OAuth:")
+    try:
+        if "oidc" in st.secrets:
+            oidc_config = dict(st.secrets["oidc"])
+            # Esconder valores sensíveis
+            if "client_secret" in oidc_config:
+                oidc_config["client_secret"] = "***HIDDEN***"
+            if "cookie_secret" in oidc_config:
+                oidc_config["cookie_secret"] = "***HIDDEN***"
+            st.json(oidc_config)
+        else:
+            st.error("❌ Secrets [oidc] não encontrados")
+    except Exception as e:
+        st.error(f"❌ Erro ao ler secrets: {e}")
+    
+    # Botões de ação
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Recarregar", key="debug_reload"):
+            st.rerun()
+    with col2:
+        if st.button("🚀 Forçar Acesso", key="force_access"):
+            st.session_state["force_authenticated"] = True
             st.rerun()
 
 # --- Lógica Principal ---
 def main():
     """Função principal do app."""
     try:
+        # Verifica modo debug
+        if st.session_state.get("debug_mode", False):
+            render_debug_page()
+            return
+        
+        # Verifica acesso forçado (para debug)
+        if st.session_state.get("force_authenticated", False):
+            render_success_page()
+            return
+        
         # Verifica se está autenticado
         if not is_authenticated():
             render_login_page()
@@ -255,15 +327,20 @@ def main():
             render_access_denied()
             return
         
-        # Usuário autenticado e autorizado - redireciona
-        render_success_and_redirect()
+        # Usuário autenticado e autorizado
+        render_success_page()
         
     except Exception as e:
         st.error("⚠️ Erro inesperado na aplicação")
         st.exception(e)
         
-        if st.button("🔄 Recarregar", key="reload_btn"):
-            st.rerun()
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🔄 Recarregar", key="reload_btn"):
+                st.rerun()
+            if st.button("🛠️ Debug", key="debug_btn"):
+                st.session_state["debug_mode"] = True
+                st.rerun()
 
 if __name__ == "__main__":
     main()
