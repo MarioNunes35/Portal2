@@ -6,7 +6,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ------------ Utilitários mínimos (sem chamar st.login aqui!) ------------
+# -------------- Utilitários (sem chamar st.login aqui!) --------------
 def _get_user_obj():
     u = getattr(getattr(st, "context", None), "user", None)
     if u:
@@ -28,11 +28,27 @@ def get_email() -> str:
         pass
     return ""
 
+def go_to_login():
+    """Tenta voltar para a página principal do app com st.switch_page().
+       Permite configurar o arquivo principal via secrets: [app] main_file="app-8.py"
+    """
+    main_file = st.secrets.get("app", {}).get("main_file", "app-8.py")
+    candidates = [main_file, "app.py", "Home.py", "main.py", "Main.py"]
+    for target in candidates:
+        try:
+            st.switch_page(target)
+            return
+        except Exception:
+            continue
+    # Se nada funcionou, informa o usuário
+    st.info("Não foi possível redirecionar automaticamente. Abra a página de **login** pelo menu (ícone “>” no topo).")
+
 def stop_if_not_logged():
-    # 👉 NUNCA chame st.login aqui; só bloqueie e oriente a voltar ao login
+    # 👉 NUNCA chame st.login aqui; só bloqueie e ofereça um botão para voltar
     if not get_email():
-        st.warning("Você precisa fazer login na página principal.")
-        st.page_link("app-8.py", label="⬅️ Voltar para Login", icon=":material/login:")
+        st.warning("Você precisa fazer login na página principal para acessar os aplicativos.")
+        if st.button("⬅️ Voltar para Login", use_container_width=True):
+            go_to_login()
         st.stop()
 
 # --------------------------- Página --------------------------------------
@@ -45,14 +61,23 @@ def app_card(title: str, description: str, href: str = "", internal_page: str = 
 
         with col1:
             if internal_page:
-                st.page_link(internal_page, label="Abrir", icon=":material/open_in_new:")
+                # Para páginas internas deste MESMO projeto, opcional:
+                try:
+                    st.page_link(internal_page, label="Abrir", icon=":material/open_in_new:")
+                except Exception:
+                    # Fallback: tenta switch_page
+                    if st.button("Abrir", use_container_width=True):
+                        try:
+                            st.switch_page(internal_page)
+                        except Exception:
+                            st.warning("Não foi possível abrir a página interna; verifique o nome do arquivo.")
             elif href:
                 st.link_button("Abrir", href, use_container_width=True)
             else:
                 st.button("Indisponível", disabled=True, use_container_width=True)
 
         with col2:
-            st.write("")  # espaço para futuro: tags, badges, etc.
+            st.write("")  # espaço para tags/badges no futuro
 
 def main():
     stop_if_not_logged()  # garante que só usuários autenticados vejam esta página
@@ -137,7 +162,6 @@ def main():
     ]
     # ===========================================
 
-    # Grid responsivo simples
     cols = st.columns(3)
     for i, app in enumerate(apps):
         with cols[i % 3]:
@@ -149,8 +173,11 @@ def main():
             )
 
     st.divider()
-    st.page_link("app-8.py", label="⬅️ Voltar ao Login", icon=":material/login:")
+    # Em vez de page_link aqui, ofereça o mesmo botão seguro:
+    if st.button("⬅️ Voltar ao Login", use_container_width=True):
+        go_to_login()
 
 if __name__ == "__main__":
     main()
+
 
