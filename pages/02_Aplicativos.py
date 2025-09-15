@@ -103,6 +103,20 @@ h1, h2, h3{ color: #fff; }
 .login-box .stButton button:hover {
     transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
 }
+
+/* Botão customizado */
+.custom-button {
+    display: inline-block; width: 100%; padding: 12px 24px; 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; text-decoration: none; border-radius: 12px; 
+    font-weight: 600; text-align: center; margin-top: 0.5rem;
+    transition: all 0.2s; cursor: pointer;
+}
+.custom-button:hover {
+    transform: translateY(-2px); 
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    color: white; text-decoration: none;
+}
 </style>
 """
 st.markdown(PORTAL_STYLE_CSS, unsafe_allow_html=True)
@@ -135,11 +149,11 @@ APPS = [
     },
     {
         "name": "Histograms", "desc": "Geração de histogramas customizados com análise estatística completa.",
-        "emoji": "📶", "url": "https://apphistogramspy-b3kfy7atbdhgxx8udeduma.streamlit.app/", "accent": "linear-gradient(180deg, #ec4899, #db2777)",
+        "emoji": "🔶", "url": "https://apphistogramspy-b3kfy7atbdhgxx8udeduma.streamlit.app/", "accent": "linear-gradient(180deg, #ec4899, #db2777)",
     },
     {
         "name": "Column 3D Line", "desc": "Visualização de dados em 3D com projeções e rotação interativa.",
-        "emoji": "🌐", "url": "https://column3dpyline2inmoduleimportdash-kdqhfwwyyhdtb48x4z3kkn.streamlit.app/", "accent": "linear-gradient(180deg, #06b6d4, #0891b2)",
+        "emoji": "🌍", "url": "https://column3dpyline2inmoduleimportdash-kdqhfwwyyhdtb48x4z3kkn.streamlit.app/", "accent": "linear-gradient(180deg, #06b6d4, #0891b2)",
     },
     {
         "name": "Crystallinity DSC/XRD", "desc": "Cálculo de cristalinidade por DSC e XRD com análise comparativa.",
@@ -240,6 +254,22 @@ def is_allowed(email: str) -> bool:
         # Em caso de erro, permite o acesso (fallback seguro para desenvolvimento)
         return True
 
+def get_main_app_url() -> str:
+    """Obtém a URL da aplicação principal baseada na URL atual."""
+    try:
+        # Tenta obter a URL atual do Streamlit
+        if hasattr(st, 'get_option'):
+            base_url = st.get_option("server.baseUrlPath") or ""
+        else:
+            base_url = ""
+        
+        # Se não conseguir obter automaticamente, usa uma URL padrão
+        # Você deve substituir esta URL pela URL real da sua aplicação principal
+        return "https://f4iu25yf4y6qdhjisk6bqy.streamlit.app"
+    except Exception:
+        # URL de fallback - substitua pela URL real da sua aplicação
+        return "https://f4iu25yf4y6qdhjisk6bqy.streamlit.app"
+
 def render_login_page():
     """Renderiza a página de login quando o usuário não está autenticado."""
     st.markdown('''
@@ -249,7 +279,7 @@ def render_login_page():
                 <p style="color: #666; margin-bottom: 2rem;">Você precisa fazer login para acessar seus aplicativos</p>
                 <div style="background: rgba(255,193,7,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107;">
                     <p style="color: #856404; margin: 0;">
-                        <strong>🔑 Como fazer login:</strong><br>
+                        <strong>🔒 Como fazer login:</strong><br>
                         Acesse a página principal do portal para fazer login com sua conta Google
                     </p>
                 </div>
@@ -257,11 +287,15 @@ def render_login_page():
         </div>
     ''', unsafe_allow_html=True)
     
-    # Botão para voltar à página principal
+    # Botão para voltar à página principal usando link HTML
+    main_app_url = get_main_app_url()
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🔙 Ir para Página de Login", type="primary", use_container_width=True):
-            st.switch_page("/app.py")
+        st.markdown(f"""
+        <a href="{main_app_url}" target="_self" class="custom-button">
+           🔙 Ir para Página de Login
+        </a>
+        """, unsafe_allow_html=True)
 
 def render_portal():
     """Mostra o portal principal com os aplicativos."""
@@ -284,10 +318,17 @@ def render_portal():
     with st.sidebar:
         st.write(f"**Usuário:** {user_email or 'Não identificado'}")
         if st.button("🚪 Sair", use_container_width=True):
-            # Limpa a sessão e redireciona
+            # Limpa a sessão e redireciona usando JavaScript
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
-            st.switch_page("/app.py")
+            
+            main_app_url = get_main_app_url()
+            st.markdown(f"""
+            <script>
+                window.location.href = "{main_app_url}";
+            </script>
+            """, unsafe_allow_html=True)
+            st.stop()
 
     st.markdown("### Seus aplicativos")
     st.markdown('<p class="subtitle">Acesse as ferramentas de análise de forma rápida e organizada</p>', unsafe_allow_html=True)
@@ -335,33 +376,31 @@ def main():
             st.warning(f"O e-mail **{user_email or 'não identificado'}** não tem permissão para acessar este portal.")
             st.info("💡 Entre em contato com o administrador para solicitar acesso.")
             
+            main_app_url = get_main_app_url()
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                if st.button("🔙 Voltar ao Login", type="primary", use_container_width=True):
-                    # Limpa a sessão e volta para o login
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    st.switch_page("/app.py")
+                st.markdown(f"""
+                <a href="{main_app_url}" target="_self" class="custom-button">
+                   🔙 Voltar ao Login
+                </a>
+                """, unsafe_allow_html=True)
             return
         
         # Usuário autorizado - mostra o portal
         render_portal()
         
     except Exception as e:
-        st.error("❌ **Erro inesperado na aplicação**")
+        st.error("⚠️ **Erro inesperado na aplicação**")
         st.exception(e)
         
+        main_app_url = get_main_app_url()
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("🔄 Tentar Novamente", type="primary", use_container_width=True):
                 st.rerun()
-            # Link direto em vez de st.switch_page
-            st.markdown("""
-            <a href="https://f4iu25yf4y6qdhjisk6bqy.streamlit.app" target="_self" 
-               style="display: inline-block; width: 100%; padding: 12px 24px; 
-                      background: #6c757d; color: white; text-decoration: none; 
-                      border-radius: 12px; font-weight: 600; text-align: center; 
-                      margin-top: 0.5rem;">
+            
+            st.markdown(f"""
+            <a href="{main_app_url}" target="_self" class="custom-button">
                🔙 Voltar ao Login
             </a>
             """, unsafe_allow_html=True)
