@@ -1,10 +1,10 @@
-# pages/02_Aplicativos.py
+# pages/02_Aplicativos.py - Portal de Aplicativos Corrigido
 import streamlit as st
 
 # --- Configuração Inicial da Página ---
 st.set_page_config(page_title="Portal de Análises", layout="wide", initial_sidebar_state="collapsed")
 
-# --- Estilo Visual (CSS do seu design) ---
+# --- Estilo Visual (CSS) ---
 PORTAL_STYLE_CSS = """
 <style>
 /* Fundo e Fonte Principal */
@@ -161,8 +161,7 @@ APPS = [
 
 # --- Funções de Utilidade ---
 def get_user_email() -> str:
-    """Obtém o email do usuário logado."""
-    # Tenta diferentes fontes para obter o email
+    """Obtém o email do usuário logado de diferentes fontes."""
     try:
         # Método moderno (st.context.user)
         if hasattr(st, 'context') and hasattr(st.context, 'user') and st.context.user:
@@ -177,6 +176,13 @@ def get_user_email() -> str:
                     if email:
                         return str(email)
         
+        # Método legado (st.user)
+        if hasattr(st, 'user') and st.user:
+            if hasattr(st.user, 'email') and st.user.email:
+                return str(st.user.email)
+            elif hasattr(st.user, 'primaryEmail') and st.user.primaryEmail:
+                return str(st.user.primaryEmail)
+        
         # Fallback para session_state
         for key in ("user_email", "email", "oidc_email"):
             if key in st.session_state and st.session_state[key]:
@@ -185,7 +191,32 @@ def get_user_email() -> str:
     except Exception:
         pass
     
-    return "usuário"
+    return ""
+
+def is_authenticated() -> bool:
+    """Verifica se o usuário está autenticado."""
+    try:
+        # Verifica st.context.user primeiro
+        if hasattr(st, 'context') and hasattr(st.context, 'user') and st.context.user:
+            return True
+        
+        # Verifica st.user (método legado)
+        if hasattr(st, 'user') and st.user:
+            # Alguns campos indicam autenticação
+            if hasattr(st.user, 'is_logged_in'):
+                return getattr(st.user, 'is_logged_in', False)
+            if hasattr(st.user, 'email') and st.user.email:
+                return True
+        
+        # Verifica session_state
+        for key in ("authenticated", "user_email", "email", "oidc_email"):
+            if key in st.session_state and st.session_state[key]:
+                return True
+                
+    except Exception:
+        pass
+    
+    return False
 
 def is_allowed(email: str) -> bool:
     """Verifica se um e-mail está na lista de permissões dos secrets."""
@@ -210,22 +241,28 @@ def is_allowed(email: str) -> bool:
         return True
 
 def render_login_page():
-    """Renderiza a página de login."""
+    """Renderiza a página de login quando o usuário não está autenticado."""
     st.markdown('''
         <div class="login-container">
             <div class="login-box">
                 <h1>🚀 Portal de Análises</h1>
-                <p>Faça login para acessar seus aplicativos</p>
+                <p style="color: #666; margin-bottom: 2rem;">Você precisa fazer login para acessar seus aplicativos</p>
+                <div style="background: rgba(255,193,7,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <p style="color: #856404; margin: 0;">
+                        <strong>🔑 Como fazer login:</strong><br>
+                        Acesse a página principal do portal para fazer login com sua conta Google
+                    </p>
+                </div>
             </div>
         </div>
     ''', unsafe_allow_html=True)
     
-    st.info("🔑 Faça login através da página principal do portal.")
-    
-    if st.button("← Voltar para Login", type="primary"):
-        st.switch_page("app.py")
+    # Botão para voltar à página principal
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔙 Ir para Página de Login", type="primary", use_container_width=True):
+            st.switch_page("app.py")
 
-# --- Funções de Interface ---
 def render_portal():
     """Mostra o portal principal com os aplicativos."""
     user_email = get_user_email()
@@ -238,17 +275,18 @@ def render_portal():
             </span>
             <span style="text-align: right;">
                 <small>Logado como:</small><br>
-                <strong>{user_email}</strong>
+                <strong>{user_email or "Usuário"}</strong>
             </span>
         </div>
     ''', unsafe_allow_html=True)
 
     # Sidebar com informações do usuário
     with st.sidebar:
-        st.write(f"**Usuário:** {user_email}")
+        st.write(f"**Usuário:** {user_email or 'Não identificado'}")
         if st.button("🚪 Sair", use_container_width=True):
             # Limpa a sessão e redireciona
-            st.session_state.clear()
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.switch_page("app.py")
 
     st.markdown("### Seus aplicativos")
@@ -284,33 +322,42 @@ def main():
     """Função principal da página de aplicativos."""
     try:
         # Verifica se o usuário está autenticado
-        user_email = get_user_email()
-        
-        # Se não tem email válido, assume que não está logado
-        if not user_email or user_email == "usuário":
+        if not is_authenticated():
             render_login_page()
             return
         
+        # Obtém o email do usuário
+        user_email = get_user_email()
+        
         # Verifica permissões
         if not is_allowed(user_email):
-            st.error(f"🚫 **Acesso Negado**")
-            st.warning(f"O e-mail **{user_email}** não tem permissão para acessar este portal.")
+            st.error("🚫 **Acesso Negado**")
+            st.warning(f"O e-mail **{user_email or 'não identificado'}** não tem permissão para acessar este portal.")
             st.info("💡 Entre em contato com o administrador para solicitar acesso.")
             
-            if st.button("🔙 Voltar ao Login"):
-                st.session_state.clear()
-                st.switch_page("app.py")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("🔙 Voltar ao Login", type="primary", use_container_width=True):
+                    # Limpa a sessão e volta para o login
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                    st.switch_page("app.py")
             return
         
         # Usuário autorizado - mostra o portal
         render_portal()
         
     except Exception as e:
-        st.error("❌ Erro inesperado na autenticação.")
+        st.error("❌ **Erro inesperado na aplicação**")
         st.exception(e)
         
-        if st.button("🔄 Tentar Novamente"):
-            st.rerun()
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🔄 Tentar Novamente", type="primary", use_container_width=True):
+                st.rerun()
+            if st.button("🔙 Voltar ao Login", use_container_width=True):
+                st.switch_page("app.py")
 
+# Executa a função principal
 if __name__ == "__main__":
     main()
