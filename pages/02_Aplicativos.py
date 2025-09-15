@@ -355,8 +355,16 @@ def main():
         with col2:
             if st.button("🔄 Tentar Novamente", type="primary", use_container_width=True):
                 st.rerun()
-            if st.button("🔙 Voltar ao Login", use_container_width=True):
-                st.switch_page("/app.py")
+            # Link direto em vez de st.switch_page
+            st.markdown("""
+            <a href="https://f4iu25yf4y6qdhjisk6bqy.streamlit.app" target="_self" 
+               style="display: inline-block; width: 100%; padding: 12px 24px; 
+                      background: #6c757d; color: white; text-decoration: none; 
+                      border-radius: 12px; font-weight: 600; text-align: center; 
+                      margin-top: 0.5rem;">
+               🔙 Voltar ao Login
+            </a>
+            """, unsafe_allow_html=True)
 
 # Executa a função principal
 if __name__ == "__main__":
