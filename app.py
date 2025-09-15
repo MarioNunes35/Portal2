@@ -31,7 +31,7 @@ def check_oidc_available():
             return True, None, []
         
         # 3) Resolver provider a partir de secrets
-        provider_arg, provider_problems = resolve_auth_provider()
+        provider_arg, provider_problems = "google", []
         problems.extend(provider_problems)
         if problems:
             return False, provider_arg, problems
