@@ -1,5 +1,6 @@
 # pages/02_Aplicativos.py - Portal de Aplicativos Corrigido
 import streamlit as st
+import time
 
 # --- Configuração Inicial da Página ---
 st.set_page_config(page_title="Portal de Análises", layout="wide", initial_sidebar_state="collapsed")
@@ -94,27 +95,34 @@ h1, h2, h3{ color: #fff; }
     border-radius: 20px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     backdrop-filter: blur(10px); width: min(450px, 90vw); text-align: center;
 }
-.login-box .stButton button {
-    width: 100%; padding: 16px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white; border: none; border-radius: 12px; font-size: 16px;
-    font-weight: 600; height: 56px; margin-top: 24px; transition: all 0.2s;
+
+/* Estado de carregamento */
+.loading-spinner {
+    display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3);
+    border-radius: 50%; border-top-color: #667eea; animation: spin 1s ease-in-out infinite;
 }
-.login-box .stButton button:hover {
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Botões melhorados */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white; border: none; border-radius: 12px; padding: 12px 24px;
+    font-weight: 600; text-decoration: none; display: inline-block;
+    transition: all 0.2s; text-align: center; width: 100%;
+}
+.btn-primary:hover {
     transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    color: white; text-decoration: none;
 }
 
-/* Botão customizado */
-.custom-button {
-    display: inline-block; width: 100%; padding: 12px 24px; 
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white; text-decoration: none; border-radius: 12px; 
-    font-weight: 600; text-align: center; margin-top: 0.5rem;
-    transition: all 0.2s; cursor: pointer;
+.btn-secondary {
+    background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 12px; padding: 12px 24px; font-weight: 600; text-decoration: none;
+    display: inline-block; transition: all 0.2s; text-align: center; width: 100%;
+    margin-top: 0.5rem;
 }
-.custom-button:hover {
-    transform: translateY(-2px); 
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+.btn-secondary:hover {
+    background: rgba(255,255,255,0.15); transform: translateY(-1px);
     color: white; text-decoration: none;
 }
 </style>
@@ -174,8 +182,40 @@ APPS = [
 ]
 
 # --- Funções de Utilidade ---
+def debug_auth_state():
+    """Função para debug do estado de autenticação."""
+    debug_info = {
+        "hasattr_st_context": hasattr(st, 'context'),
+        "hasattr_st_user": hasattr(st, 'user'),
+        "session_state_keys": list(st.session_state.keys()),
+    }
+    
+    # Verifica st.context.user
+    if hasattr(st, 'context') and hasattr(st.context, 'user'):
+        try:
+            user = st.context.user
+            debug_info["context_user_type"] = type(user).__name__
+            debug_info["context_user_bool"] = bool(user)
+            if user:
+                debug_info["context_user_attributes"] = [attr for attr in dir(user) if not attr.startswith('_')]
+        except Exception as e:
+            debug_info["context_user_error"] = str(e)
+    
+    # Verifica st.user
+    if hasattr(st, 'user'):
+        try:
+            user = st.user
+            debug_info["st_user_type"] = type(user).__name__
+            debug_info["st_user_bool"] = bool(user)
+            if user:
+                debug_info["st_user_attributes"] = [attr for attr in dir(user) if not attr.startswith('_')]
+        except Exception as e:
+            debug_info["st_user_error"] = str(e)
+    
+    return debug_info
+
 def get_user_email() -> str:
-    """Obtém o email do usuário logado de diferentes fontes."""
+    """Obtém o email do usuário logado com debug melhorado."""
     try:
         # Método moderno (st.context.user)
         if hasattr(st, 'context') and hasattr(st.context, 'user') and st.context.user:
@@ -208,7 +248,7 @@ def get_user_email() -> str:
     return ""
 
 def is_authenticated() -> bool:
-    """Verifica se o usuário está autenticado."""
+    """Verifica se o usuário está autenticado com verificação mais robusta."""
     try:
         # Verifica st.context.user primeiro
         if hasattr(st, 'context') and hasattr(st.context, 'user') and st.context.user:
@@ -254,48 +294,113 @@ def is_allowed(email: str) -> bool:
         # Em caso de erro, permite o acesso (fallback seguro para desenvolvimento)
         return True
 
-def get_main_app_url() -> str:
-    """Obtém a URL da aplicação principal baseada na URL atual."""
+def render_debug_page():
+    """Renderiza uma página de debug para entender o estado de autenticação."""
+    st.markdown('''
+        <div class="login-container">
+            <div class="login-box">
+                <h1>🔍 Portal de Análises - Debug</h1>
+                <p style="color: #666; margin-bottom: 2rem;">Analisando estado de autenticação...</p>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    # Informações de debug
+    debug_info = debug_auth_state()
+    
+    st.subheader("🛠️ Debug da Autenticação")
+    st.json(debug_info)
+    
+    # Estado de autenticação
+    is_auth = is_authenticated()
+    user_email = get_user_email()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Autenticado", "✅ Sim" if is_auth else "❌ Não")
+    with col2:
+        st.metric("Email", user_email or "Não encontrado")
+    
+    # Informações dos secrets
+    st.subheader("🔐 Configuração de Autenticação")
     try:
-        # Tenta obter a URL atual do Streamlit
-        if hasattr(st, 'get_option'):
-            base_url = st.get_option("server.baseUrlPath") or ""
-        else:
-            base_url = ""
+        auth_config = st.secrets.get("auth", {})
+        allowed_emails = auth_config.get("allowed_emails", [])
+        allowed_domains = auth_config.get("allowed_domains", [])
         
-        # Se não conseguir obter automaticamente, usa uma URL padrão
-        # Você deve substituir esta URL pela URL real da sua aplicação principal
-        return "https://f4iu25yf4y6qdhjisk6bqy.streamlit.app"
-    except Exception:
-        # URL de fallback - substitua pela URL real da sua aplicação
-        return "https://f4iu25yf4y6qdhjisk6bqy.streamlit.app"
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**Emails permitidos:**")
+            if allowed_emails:
+                for email in allowed_emails:
+                    st.write(f"- {email}")
+            else:
+                st.write("Nenhum configurado")
+        
+        with col2:
+            st.write("**Domínios permitidos:**")
+            if allowed_domains:
+                for domain in allowed_domains:
+                    st.write(f"- {domain}")
+            else:
+                st.write("Nenhum configurado")
+    except Exception as e:
+        st.error(f"Erro ao ler configuração: {e}")
+    
+    # Botões de ação
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🔄 Recarregar Página", type="primary", use_container_width=True):
+            st.rerun()
+    
+    with col2:
+        if st.button("🚀 Tentar Acessar Portal", use_container_width=True):
+            st.session_state["force_access"] = True
+            st.rerun()
 
 def render_login_page():
-    """Renderiza a página de login quando o usuário não está autenticado."""
+    """Renderiza a página de login sem redirecionamento automático."""
     st.markdown('''
         <div class="login-container">
             <div class="login-box">
                 <h1>🚀 Portal de Análises</h1>
                 <p style="color: #666; margin-bottom: 2rem;">Você precisa fazer login para acessar seus aplicativos</p>
-                <div style="background: rgba(255,193,7,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107;">
+                
+                <div style="background: rgba(255,193,7,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 1.5rem;">
                     <p style="color: #856404; margin: 0;">
                         <strong>🔒 Como fazer login:</strong><br>
-                        Acesse a página principal do portal para fazer login com sua conta Google
+                        • Acesse a página principal do portal<br>
+                        • Faça login com sua conta Google<br>
+                        • Retorne a esta página
+                    </p>
+                </div>
+                
+                <div style="background: rgba(23,162,184,0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                    <p style="color: #0c5460; margin: 0;">
+                        <strong>💡 Dica:</strong><br>
+                        Se você já fez login e ainda está vendo esta página, tente recarregar ou ativar o modo debug abaixo.
                     </p>
                 </div>
             </div>
         </div>
     ''', unsafe_allow_html=True)
     
-    # Botão para voltar à página principal usando link HTML
-    main_app_url = get_main_app_url()
+    # Botões de ação sem redirecionamento automático
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown(f"""
-        <a href="{main_app_url}" target="_self" class="custom-button">
-           🔙 Ir para Página de Login
+        st.markdown("""
+        <a href="https://f4iu25yf4y6qdhjisk6bqy.streamlit.app" target="_blank" class="btn-primary" style="margin-bottom: 0.5rem;">
+           🔐 Abrir Página de Login (Nova Aba)
         </a>
         """, unsafe_allow_html=True)
+        
+        if st.button("🔄 Recarregar Esta Página", use_container_width=True):
+            st.rerun()
+        
+        if st.button("🛠️ Modo Debug", use_container_width=True):
+            st.session_state["debug_mode"] = True
+            st.rerun()
 
 def render_portal():
     """Mostra o portal principal com os aplicativos."""
@@ -317,18 +422,22 @@ def render_portal():
     # Sidebar com informações do usuário
     with st.sidebar:
         st.write(f"**Usuário:** {user_email or 'Não identificado'}")
+        st.write(f"**Autenticado:** {'✅' if is_authenticated() else '❌'}")
+        
+        if st.button("🛠️ Debug", use_container_width=True):
+            st.session_state["debug_mode"] = True
+            st.rerun()
+        
         if st.button("🚪 Sair", use_container_width=True):
-            # Limpa a sessão e redireciona usando JavaScript
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
+            # Limpa apenas as chaves relacionadas à autenticação
+            keys_to_clear = ["force_access", "debug_mode", "user_email", "email", "authenticated"]
+            for key in keys_to_clear:
+                if key in st.session_state:
+                    del st.session_state[key]
             
-            main_app_url = get_main_app_url()
-            st.markdown(f"""
-            <script>
-                window.location.href = "{main_app_url}";
-            </script>
-            """, unsafe_allow_html=True)
-            st.stop()
+            st.success("Logout realizado com sucesso!")
+            time.sleep(1)
+            st.rerun()
 
     st.markdown("### Seus aplicativos")
     st.markdown('<p class="subtitle">Acesse as ferramentas de análise de forma rápida e organizada</p>', unsafe_allow_html=True)
@@ -362,28 +471,36 @@ def render_portal():
 def main():
     """Função principal da página de aplicativos."""
     try:
+        # Modo debug
+        if st.session_state.get("debug_mode", False):
+            render_debug_page()
+            return
+        
+        # Acesso forçado (para debug)
+        force_access = st.session_state.get("force_access", False)
+        
         # Verifica se o usuário está autenticado
-        if not is_authenticated():
+        if not force_access and not is_authenticated():
             render_login_page()
             return
         
         # Obtém o email do usuário
         user_email = get_user_email()
         
-        # Verifica permissões
-        if not is_allowed(user_email):
+        # Verifica permissões (exceto em modo de acesso forçado)
+        if not force_access and user_email and not is_allowed(user_email):
             st.error("🚫 **Acesso Negado**")
-            st.warning(f"O e-mail **{user_email or 'não identificado'}** não tem permissão para acessar este portal.")
+            st.warning(f"O e-mail **{user_email}** não tem permissão para acessar este portal.")
             st.info("💡 Entre em contato com o administrador para solicitar acesso.")
             
-            main_app_url = get_main_app_url()
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                st.markdown(f"""
-                <a href="{main_app_url}" target="_self" class="custom-button">
-                   🔙 Voltar ao Login
-                </a>
-                """, unsafe_allow_html=True)
+                if st.button("🔄 Tentar Novamente", type="primary", use_container_width=True):
+                    st.rerun()
+                
+                if st.button("🛠️ Modo Debug", use_container_width=True):
+                    st.session_state["debug_mode"] = True
+                    st.rerun()
             return
         
         # Usuário autorizado - mostra o portal
@@ -393,17 +510,14 @@ def main():
         st.error("⚠️ **Erro inesperado na aplicação**")
         st.exception(e)
         
-        main_app_url = get_main_app_url()
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("🔄 Tentar Novamente", type="primary", use_container_width=True):
                 st.rerun()
             
-            st.markdown(f"""
-            <a href="{main_app_url}" target="_self" class="custom-button">
-               🔙 Voltar ao Login
-            </a>
-            """, unsafe_allow_html=True)
+            if st.button("🛠️ Modo Debug", use_container_width=True):
+                st.session_state["debug_mode"] = True
+                st.rerun()
 
 # Executa a função principal
 if __name__ == "__main__":
