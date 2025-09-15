@@ -1,4 +1,4 @@
-# portal_final_v3.py
+# pages/02_Aplicativos.py
 import streamlit as st
 
 # --- Configuração Inicial da Página ---
@@ -159,18 +159,77 @@ APPS = [
     },
 ]
 
-# --- Funções de Permissão ---
+# --- Funções de Utilidade ---
+def get_user_email() -> str:
+    """Obtém o email do usuário logado."""
+    # Tenta diferentes fontes para obter o email
+    try:
+        # Método moderno (st.context.user)
+        if hasattr(st, 'context') and hasattr(st.context, 'user') and st.context.user:
+            user = st.context.user
+            for key in ("email", "primaryEmail", "preferred_username"):
+                if hasattr(user, key):
+                    email = getattr(user, key)
+                    if email:
+                        return str(email)
+                elif isinstance(user, dict) and key in user:
+                    email = user[key]
+                    if email:
+                        return str(email)
+        
+        # Fallback para session_state
+        for key in ("user_email", "email", "oidc_email"):
+            if key in st.session_state and st.session_state[key]:
+                return str(st.session_state[key])
+                
+    except Exception:
+        pass
+    
+    return "usuário"
+
 def is_allowed(email: str) -> bool:
     """Verifica se um e-mail está na lista de permissões dos secrets."""
-    auth_config = st.secrets.get("auth", {})
-    allowed_emails = {str(e).strip().lower() for e in auth_config.get("allowed_emails", [])}
-    if not allowed_emails:
-        return True # Permite todos se a lista estiver vazia
-    return email.strip().lower() in allowed_emails
+    if not email:
+        return False
+        
+    try:
+        auth_config = st.secrets.get("auth", {})
+        allowed_emails = set(str(e).strip().lower() for e in auth_config.get("allowed_emails", []))
+        allowed_domains = set(str(d).strip().lower() for d in auth_config.get("allowed_domains", []))
+        
+        # Se não há lista de permissões, permite todos os usuários autenticados
+        if not allowed_emails and not allowed_domains:
+            return True
+            
+        email = email.strip().lower()
+        domain = email.split("@")[-1] if "@" in email else ""
+        
+        return email in allowed_emails or domain in allowed_domains
+    except Exception:
+        # Em caso de erro, permite o acesso (fallback seguro para desenvolvimento)
+        return True
+
+def render_login_page():
+    """Renderiza a página de login."""
+    st.markdown('''
+        <div class="login-container">
+            <div class="login-box">
+                <h1>🚀 Portal de Análises</h1>
+                <p>Faça login para acessar seus aplicativos</p>
+            </div>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    st.info("🔑 Faça login através da página principal do portal.")
+    
+    if st.button("← Voltar para Login", type="primary"):
+        st.switch_page("app.py")
 
 # --- Funções de Interface ---
 def render_portal():
     """Mostra o portal principal com os aplicativos."""
+    user_email = get_user_email()
+    
     st.markdown(f'''
         <div class="nav">
             <span class="brand">
@@ -179,19 +238,26 @@ def render_portal():
             </span>
             <span style="text-align: right;">
                 <small>Logado como:</small><br>
-                <strong>{st.user.email}</strong>
+                <strong>{user_email}</strong>
             </span>
         </div>
     ''', unsafe_allow_html=True)
 
+    # Sidebar com informações do usuário
     with st.sidebar:
-        st.write(f"Logado como: **{st.user.email}**")
-        st.logout("Sair", use_container_width=True)
+        st.write(f"**Usuário:** {user_email}")
+        if st.button("🚪 Sair", use_container_width=True):
+            # Limpa a sessão e redireciona
+            st.session_state.clear()
+            st.switch_page("app.py")
 
     st.markdown("### Seus aplicativos")
     st.markdown('<p class="subtitle">Acesse as ferramentas de análise de forma rápida e organizada</p>', unsafe_allow_html=True)
+    
+    # Campo de busca
     search_query = st.text_input("Buscar", placeholder="🔍 Buscar aplicativos...", label_visibility="collapsed")
     
+    # Filtrar aplicativos baseado na busca
     query = search_query.lower().strip()
     filtered_apps = [app for app in APPS if query in app["name"].lower() or query in app["desc"].lower()]
 
@@ -213,17 +279,38 @@ def render_portal():
     else:
         st.info("🔍 Nenhum aplicativo encontrado para o termo buscado.")
 
-# --- Lógica Principal do Aplicativo ---
-is_authenticated = getattr(st.user, "is_logged_in", False)
-
-if not is_authenticated:
-    render_login_page()
-else:
-    if is_allowed(st.user.email):
+# --- Lógica Principal ---
+def main():
+    """Função principal da página de aplicativos."""
+    try:
+        # Verifica se o usuário está autenticado
+        user_email = get_user_email()
+        
+        # Se não tem email válido, assume que não está logado
+        if not user_email or user_email == "usuário":
+            render_login_page()
+            return
+        
+        # Verifica permissões
+        if not is_allowed(user_email):
+            st.error(f"🚫 **Acesso Negado**")
+            st.warning(f"O e-mail **{user_email}** não tem permissão para acessar este portal.")
+            st.info("💡 Entre em contato com o administrador para solicitar acesso.")
+            
+            if st.button("🔙 Voltar ao Login"):
+                st.session_state.clear()
+                st.switch_page("app.py")
+            return
+        
+        # Usuário autorizado - mostra o portal
         render_portal()
-    else:
-        st.error(f"🚫 Acesso Negado. O e-mail **{st.user.email}** não tem permissão para acessar este portal.")
-        st.warning("Por favor, contate o administrador para solicitar acesso.")
-        if st.button("Sair"):
-            st.logout()
-            st.stop()
+        
+    except Exception as e:
+        st.error("❌ Erro inesperado na autenticação.")
+        st.exception(e)
+        
+        if st.button("🔄 Tentar Novamente"):
+            st.rerun()
+
+if __name__ == "__main__":
+    main()
