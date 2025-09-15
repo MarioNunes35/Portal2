@@ -1,8 +1,153 @@
-# app.py — Portal Unificado (login + roteamento)
+# app.py — Portal Unificado com Modo Debug
 import streamlit as st
+import sys
 
 st.set_page_config(page_title="Portal Unificado", page_icon="🚀", layout="wide")
 
+# Parâmetro de debug via URL: ?debug=true
+debug_mode = st.query_params.get("debug", "false").lower() == "true"
+
+if debug_mode:
+    # MODO DEBUG
+    st.title("🔍 Diagnóstico Completo - OAuth Config")
+    
+    # Informações do sistema
+    st.markdown("### 📊 Informações do Sistema")
+    st.write(f"**Streamlit Version:** {st.__version__}")
+    st.write(f"**Python Version:** {sys.version}")
+    
+    # Verifica se st.login existe
+    st.markdown("### 🔧 Disponibilidade do st.login")
+    if hasattr(st, "login"):
+        st.success("✅ st.login() está disponível")
+    else:
+        st.error("❌ st.login() NÃO está disponível")
+        st.warning("Streamlit precisa ser atualizado para versão ≥ 1.40.0")
+    
+    # Diagnóstico detalhado dos secrets
+    st.markdown("### 🔐 Diagnóstico dos Secrets")
+    
+    try:
+        # Tenta acessar st.secrets
+        secrets = st.secrets
+        st.success("✅ st.secrets acessível")
+        
+        # Mostra as chaves principais disponíveis
+        st.write("**Chaves disponíveis em st.secrets:**", list(secrets.keys()))
+        
+        # Verifica estrutura de auth
+        if "auth" in secrets:
+            st.success("✅ Seção [auth] encontrada")
+            auth_section = secrets["auth"]
+            st.write("**Chaves em [auth]:**", list(auth_section.keys()))
+            
+            # Verifica campos obrigatórios
+            required_fields = {
+                "redirect_uri": auth_section.get("redirect_uri"),
+                "cookie_secret": auth_section.get("cookie_secret"),
+                "allowed_emails": auth_section.get("allowed_emails")
+            }
+            
+            for field, value in required_fields.items():
+                if value:
+                    if field == "cookie_secret":
+                        st.success(f"✅ {field}: {'*' * min(len(str(value)), 20)}...")
+                    else:
+                        st.success(f"✅ {field}: {value}")
+                else:
+                    st.error(f"❌ {field}: AUSENTE ou VAZIO")
+            
+            # Verifica seção google
+            if "google" in auth_section:
+                st.success("✅ Seção [auth.google] encontrada")
+                google_section = auth_section["google"]
+                st.write("**Chaves em [auth.google]:**", list(google_section.keys()))
+                
+                google_fields = {
+                    "client_id": google_section.get("client_id"),
+                    "client_secret": google_section.get("client_secret"),
+                    "server_metadata_url": google_section.get("server_metadata_url")
+                }
+                
+                for field, value in google_fields.items():
+                    if value:
+                        if field == "client_secret":
+                            st.success(f"✅ {field}: GOCSPX-{'*' * 20}...")
+                        else:
+                            st.success(f"✅ {field}: {value}")
+                    else:
+                        st.error(f"❌ {field}: AUSENTE ou VAZIO")
+            else:
+                st.error("❌ Seção [auth.google] NÃO encontrada")
+        else:
+            st.error("❌ Seção [auth] NÃO encontrada")
+            
+    except Exception as e:
+        st.error(f"❌ Erro ao acessar secrets: {str(e)}")
+        st.code(str(e))
+    
+    # Template do secrets correto
+    st.markdown("### 📝 Template Correto do secrets.toml")
+    
+    template = """[auth]
+redirect_uri = "https://f4iu25yf4y6qdhjisk6bqy.streamlit.app/oauth2callback"
+cookie_secret = "Hc2RzH1m8w1v7h4A0z3Fv4uYw8PV6Xw2Vq9l2"
+allowed_emails = ["mariobnunes34@gmail.com", "mark.ivo.sm@gmail.com"]
+
+[auth.google]
+client_id = "402896734132-s3u3ii39dddarnft4qr04fb6n69.apps.googleusercontent.com"
+client_secret = "GOCSPX-mqTySo-fPDpfVUSjVyqG2e"
+server_metadata_url = "https://accounts.google.com/.well-known/openid-configuration"
+"""
+    
+    st.code(template, language="toml")
+    
+    # Teste da função check_oidc_config
+    st.markdown("### 🧪 Teste da Validação OAuth")
+    
+    def test_check_oidc_config():
+        problems = []
+        
+        try:
+            auth = st.secrets.get("auth", {})
+            provider = auth.get("google", {})
+
+            if not hasattr(st, "login"):
+                problems.append("❌ Esta versão do Streamlit não possui st.login()")
+
+            for k in ("redirect_uri", "cookie_secret"):
+                if not str(auth.get(k, "")).strip():
+                    problems.append(f"❌ [auth].{k} ausente nos secrets")
+
+            for k in ("client_id", "client_secret", "server_metadata_url"):
+                if not str(provider.get(k, "")).strip():
+                    problems.append(f"❌ Parâmetro OAuth ausente: {k} (em [auth.google])")
+
+            ru = str(auth.get("redirect_uri", "")).strip()
+            if ru and not ru.endswith("/oauth2callback"):
+                problems.append("❌ redirect_uri deve terminar com /oauth2callback")
+
+        except Exception as e:
+            problems.append(f"❌ Erro ao acessar secrets: {str(e)}")
+
+        return problems
+
+    problems = test_check_oidc_config()
+
+    if problems:
+        st.error("⚠️ Problemas encontrados:")
+        for problem in problems:
+            st.write(f"- {problem}")
+    else:
+        st.success("🎉 Configuração OAuth válida!")
+
+    # Link para voltar ao modo normal
+    st.markdown("---")
+    st.markdown("🔙 [Voltar ao Portal Normal](https://f4iu25yf4y6qdhjisk6bqy.streamlit.app)")
+    
+    st.stop()  # Para aqui no modo debug
+
+# RESTO DO CÓDIGO ORIGINAL (modo normal)
 def check_oidc_config():
     """Verifica se a configuração OIDC está completa."""
     problems = []
@@ -38,27 +183,10 @@ def check_oidc_config():
         for p in problems:
             st.markdown(f"- {p}")
         
-        # Instruções para configuração
+        # Link para modo debug
         st.markdown("---")
-        st.markdown("### 📋 **Como configurar:**")
-        st.markdown("""
-        1. **Crie um arquivo `.streamlit/secrets.toml`** no seu projeto
-        2. **Configure as credenciais do Google OAuth** no [Google Cloud Console](https://console.cloud.google.com)
-        3. **Adicione as configurações** conforme o exemplo abaixo
-        """)
-        
-        with st.expander("📄 Exemplo de secrets.toml"):
-            st.code("""
-[auth]
-redirect_uri = "https://your-app-url.streamlit.app/oauth2callback"
-cookie_secret = "your-random-secret-key-here-32-chars-min"
-allowed_emails = ["email1@gmail.com", "email2@empresa.com"]
-
-[auth.google]
-client_id = "your-google-client-id.apps.googleusercontent.com"
-client_secret = "your-google-client-secret"
-server_metadata_url = "https://accounts.google.com/.well-known/openid_configuration"
-            """, language="toml")
+        st.markdown("### 🔍 **Diagnóstico Detalhado:**")
+        st.markdown("🔗 [Clique aqui para diagnóstico completo](https://f4iu25yf4y6qdhjisk6bqy.streamlit.app?debug=true)")
         
         st.stop()
 
@@ -142,16 +270,6 @@ st.markdown("""
     font-size: 1.1rem;
     margin-bottom: 2rem;
 }
-
-.feature-list {
-    text-align: left;
-    color: #555;
-    margin: 1.5rem 0;
-}
-
-.feature-list li {
-    margin: 0.5rem 0;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -209,10 +327,6 @@ if email:
     # Usuário autorizado - redireciona para aplicativos
     st.success(f"✅ **Login concluído para:** {email}")
     st.info("🔄 Redirecionando para seus aplicativos...")
-    
-    # Pequeno delay para melhor UX
-    import time
-    time.sleep(1)
     
     # Redireciona para a página de aplicativos
     st.switch_page("pages/02_Aplicativos.py")
