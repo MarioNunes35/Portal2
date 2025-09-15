@@ -261,7 +261,7 @@ def render_login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.button("🔙 Ir para Página de Login", type="primary", use_container_width=True):
-            st.switch_page("app.py")
+            st.switch_page("/app.py")
 
 def render_portal():
     """Mostra o portal principal com os aplicativos."""
@@ -287,7 +287,7 @@ def render_portal():
             # Limpa a sessão e redireciona
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
-            st.switch_page("app.py")
+            st.switch_page("/app.py")
 
     st.markdown("### Seus aplicativos")
     st.markdown('<p class="subtitle">Acesse as ferramentas de análise de forma rápida e organizada</p>', unsafe_allow_html=True)
@@ -341,7 +341,7 @@ def main():
                     # Limpa a sessão e volta para o login
                     for key in list(st.session_state.keys()):
                         del st.session_state[key]
-                    st.switch_page("app.py")
+                    st.switch_page("/app.py")
             return
         
         # Usuário autorizado - mostra o portal
@@ -356,7 +356,7 @@ def main():
             if st.button("🔄 Tentar Novamente", type="primary", use_container_width=True):
                 st.rerun()
             if st.button("🔙 Voltar ao Login", use_container_width=True):
-                st.switch_page("app.py")
+                st.switch_page("/app.py")
 
 # Executa a função principal
 if __name__ == "__main__":
