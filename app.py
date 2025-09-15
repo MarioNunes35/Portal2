@@ -71,7 +71,7 @@ st.caption("Login único → redireciona para a página de aplicativos sem pedir
 try:
     # Algumas versões aceitam st.login() sem argumentos; outras suportam "oidc".
     try:
-        st.login("oidc")
+        st.login()
     except TypeError:
         st.login()
 except Exception as e:
